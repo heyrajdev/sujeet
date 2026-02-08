@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <title>Will you be my Valentine?</title>
 
   <!-- Confetti library -->
@@ -22,12 +24,16 @@
     body {
       margin: 0;
       min-height: 100svh;
+      min-height: -webkit-fill-available;
       display: grid;
       place-items: center;
       background: radial-gradient(circle at top, var(--bg2), var(--bg1));
       font-family: system-ui, sans-serif;
       overflow: hidden;
       padding: 16px;
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+      -webkit-overflow-scrolling: touch;
     }
 
     /* FULL-SCREEN CONFETTI CANVAS */
@@ -66,8 +72,18 @@
       position: relative;
       width: min(520px, 92%);
       height: 150px;
+      min-height: 120px;
       margin: 0 auto;
       touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    @media (max-width: 480px) {
+      .button-zone { height: 140px; min-height: 100px; }
+      button { min-height: 48px; padding: 14px 22px; font-size: 17px; }
+      body { padding: 12px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+      .card { padding: 20px 16px; }
     }
 
     button {
@@ -224,19 +240,23 @@
     window.addEventListener("resize", resizeConfettiCanvas);
     window.addEventListener("orientationchange", () => setTimeout(resizeConfettiCanvas, 150));
 
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 600;
     const confettiInstance = confetti.create(confettiCanvas, {
       resize: false,
-      useWorker: true
+      useWorker: !isMobile
     });
 
     function fullScreenConfetti() {
-      const end = Date.now() + 1600;
+      const mobile = isMobile;
+      const burstParticles = mobile ? 8 : 12;
+      const bigParticles = mobile ? 180 : 300;
+      const end = Date.now() + (mobile ? 1200 : 1600);
 
       (function frame() {
         confettiInstance({
-          particleCount: 12,
+          particleCount: burstParticles,
           spread: 90,
-          startVelocity: 45,
+          startVelocity: mobile ? 35 : 45,
           ticks: 180,
           origin: { x: Math.random(), y: Math.random() * 0.3 }
         });
@@ -245,9 +265,9 @@
 
       setTimeout(() => {
         confettiInstance({
-          particleCount: 300,
+          particleCount: bigParticles,
           spread: 140,
-          startVelocity: 60,
+          startVelocity: mobile ? 50 : 60,
           ticks: 220,
           origin: { x: 0.5, y: 0.55 }
         });
@@ -289,16 +309,42 @@
       growYes();
     }
 
-    zone.addEventListener("pointermove", e => {
-      const b = noBtn.getBoundingClientRect();
-      const d = Math.hypot(
-        (b.left + b.width / 2) - e.clientX,
-        (b.top + b.height / 2) - e.clientY
-      );
-      if (d < 140) moveNo(e.clientX, e.clientY);
-    });
+    function getEventXY(e) {
+      if (e.touches && e.touches.length) {
+        return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+      return { x: e.clientX, y: e.clientY };
+    }
 
+    function isNearNoButton(px, py) {
+      const b = noBtn.getBoundingClientRect();
+      const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+      const radius = Math.max(140, Math.min(b.width, b.height) * 1.8);
+      return Math.hypot(cx - px, cy - py) < radius;
+    }
+
+    function handleMove(e) {
+      const { x, y } = getEventXY(e);
+      if (isNearNoButton(x, y)) moveNo(x, y);
+    }
+
+    zone.addEventListener("pointermove", handleMove);
+
+    zone.addEventListener("touchmove", e => {
+      handleMove(e);
+    }, { passive: true });
+
+    zone.addEventListener("touchstart", e => {
+      const { x, y } = getEventXY(e);
+      if (isNearNoButton(x, y)) moveNo(x, y);
+    }, { passive: true });
+
+    noBtn.addEventListener("touchstart", e => {
+      const { x, y } = getEventXY(e);
+      moveNo(x - 80, y);
+    }, { passive: true });
     noBtn.addEventListener("click", e => e.preventDefault());
+    noBtn.addEventListener("touchend", e => e.preventDefault());
 
     /* ---------- YES CLICK ---------- */
     yesBtn.addEventListener("click", () => {
