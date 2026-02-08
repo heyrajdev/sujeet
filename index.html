@@ -161,6 +161,7 @@
 </head>
 
 <body>
+  <audio id="perfectAudio" src="perfect.mp3" preload="auto"></audio>
   <canvas id="confettiCanvas"></canvas>
 
   <main class="card">
@@ -362,12 +363,14 @@
     noBtn.addEventListener("touchend", e => e.preventDefault());
 
     /* ---------- YES CLICK ---------- */
+    const perfectAudio = document.getElementById("perfectAudio");
     yesBtn.addEventListener("click", () => {
       zone.style.display = "none";
       hint.style.display = "none";     // HIDE THE HINT
       result.style.display = "block";
       resizeConfettiCanvas();
       fullScreenConfetti();
+      if (perfectAudio) perfectAudio.play().catch(() => {});
     });
   </script>
 </body>
